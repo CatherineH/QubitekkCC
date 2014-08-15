@@ -1,0 +1,5 @@
+PLL_Name	coincidence_window:inst8|extendsignal:inst1|nsclock:inst22|altpll:altpll_component|nsclock_altpll:auto_generated|pll1
+PLLJITTER	37
+PLLSPEmax	84
+PLLSPEmin	-53
+
