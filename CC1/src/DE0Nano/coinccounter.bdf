@@ -1499,3 +1499,5 @@ agreement for further details.
 (text "Select between gated and ungated input" (rect -840 120 -610 134)(font "Arial" (font_size 8)))
 (text "Determine coincidences between signals" (rect -112 56 121 70)(font "Arial" (font_size 8)))
 (text "Synchronize channel response with clock" (rect 192 464 431 478)(font "Arial" (font_size 8)))
+(text "Synchronize channel outpu with clock" (rect 528 56 745 70)(font "Arial" (font_size 8)))
+(text "the final bit of the counter goes to the pin to signal an overflow" (rect 920 488 1276 502)(font "Arial" (font_size 8)))
