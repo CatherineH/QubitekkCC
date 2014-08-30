@@ -1,7 +1,12 @@
 //print the strings sent to the LCD on the screen
 #define ECHOLCD 0
+//print out when a button press is detected
+#define ECHOSWITCH 1
+//print out the number received from the FPGA
+#define ECHONUMBER 0
 //the number of milliseconds in the switch debounce
 #define SWITCHDEBOUNCE 10
+
 //the amount of time to wait between selecting the channel and reading the number
 #define FPGA_READ_DELAY 1
 //defined the refresh cycle
@@ -20,9 +25,9 @@
 //The following are global variables for the CC
 //The size of the coincidence window, can be values of 0, 1, 2, 3, 4, 5, 6, or 7
 int window;
-//The amount of time in count enable mode before the clear signal is sent to the counters
-//This number is in seconds, with a lower resolution of a milisecond
-float dwelltime;
+//The amount of time in count enable mode before the clear signal is sent to the counters (in milliseconds)
+//This number is in seconds, with a lower resolution of a millisecond
+int dwelltime;
 //A marker for the highlighted menu option
 int menuoption;
 //Count enable mode; 1 for count enable, 0 for free-running mode
@@ -56,6 +61,8 @@ unsigned long thousands;
 unsigned long millions;
 unsigned long billions;
 
+int fpga[21];
+
 
 /*** LCD Functions */
 
@@ -67,7 +74,7 @@ void wake_up()
    BitWrPortI(PFDR, &PFDRShadow, 0, 6); // Bit 0
    BitWrPortI(PFDR, &PFDRShadow, 0, 4); // Bit 1
    BitWrPortI(PBDR, &PBDRShadow, 0, 7); // Bit 2
-   BitWrPortI(PEDR, &PEDRShadow, 0, 6); // Bit 3
+   //BitWrPortI(PEDR, &PEDRShadow, 0, 6); // Bit 3
    BitWrPortI(PEDR, &PEDRShadow, 1, 4); // Bit 4
    BitWrPortI(PEDR, &PEDRShadow, 1, 1); // Bit 5
    BitWrPortI(PGDR, &PGDRShadow, 0, 7); // Bit 6
@@ -94,7 +101,7 @@ void function_set_8bit()
    BitWrPortI(PFDR, &PFDRShadow, 0, 6); // Bit 0
    BitWrPortI(PFDR, &PFDRShadow, 0, 4); // Bit 1
    BitWrPortI(PBDR, &PBDRShadow, 0, 7); // Bit 2
-   BitWrPortI(PEDR, &PEDRShadow, 0, 6); // Bit 3
+   //BitWrPortI(PEDR, &PEDRShadow, 0, 6); // Bit 3
    BitWrPortI(PEDR, &PEDRShadow, 0, 4); // Bit 4
    BitWrPortI(PEDR, &PEDRShadow, 1, 1); // Bit 5
    BitWrPortI(PGDR, &PGDRShadow, 0, 7); // Bit 6
@@ -126,8 +133,8 @@ void command(char c)
    BitWrPortI(PEDR, &PEDRShadow, 0, 7);
 
    //Pull Read/Write Port Low to Write Instruction
-   BitWrPortI(PFDR, &PFDRShadow, 0, 5);
-
+   //BitWrPortI(PFDR, &PFDRShadow, 0, 5);
+   //Read/Write is allways grounded now (we never read)
    //Pulse E Port High Then Low to Execute
    BitWrPortI(PFDR, &PFDRShadow, 1, 7);
 
@@ -152,7 +159,7 @@ void command(char c)
    BitWrPortI(PEDR, &PEDRShadow, 0, 7);
 
    //Pull Read/Write Port Low to Write Instruction
-   BitWrPortI(PFDR, &PFDRShadow, 0, 5);
+   //BitWrPortI(PFDR, &PFDRShadow, 0, 5);
 
    //Pulse E Port High Then Low to Execute
    BitWrPortI(PFDR, &PFDRShadow, 1, 7);
@@ -240,6 +247,13 @@ void disp_pic()
    {
       data(text3[disp_i]);
    }
+    if(ECHOLCD)
+    {
+      printf("LCD:%s\n",text0);
+      printf("LCD:%s\n",text1);
+      printf("LCD:%s\n",text2);
+      printf("LCD:%s\n",text3);
+   }
 }
 //initializes the lines to the LCD on the Rabbit
 void initOutputLCD()
@@ -289,6 +303,8 @@ void initLCD()
 //display  menu
 void coincidenceWindowMenu(int window, int gateEnable, int dwelltime, int menuoption, int rotator)
 {
+	int dwell_s;
+   dwell_s = (int)(dwelltime/1000);
    sprintf(text0,"Enable to Select    ");
    //if the menu option is selected, put in the arrow character(126)
    if(menuoption ==2)
@@ -310,18 +326,19 @@ void coincidenceWindowMenu(int window, int gateEnable, int dwelltime, int menuop
    }
    if(menuoption ==1)
    {
+   	//printf("%3.2f, %d, %3f, %d\n",100.5,100.5,dwelltime,dwelltime);
    	if(rotator)
       {
-   		sprintf(text2,"%cDwell Time: %3.2f s",126,dwelltime);
+   		sprintf(text2,"%cDwell Time: %2d s   ",126,dwell_s);
       }
       else
       {
-         sprintf(text2,"%cDwell Time:    s",126);
+         sprintf(text2,"%cDwell Time:    s   ",126);
       }
    }
    else
    {
-   	sprintf(text2," Dwell Time: %2d s   ",dwelltime);
+   	sprintf(text2," Dwell Time: %2d s   ",dwell_s);
    }
    if(gateEnable)
    {
@@ -402,7 +419,7 @@ void initOutputFPGA()
    BitWrPortI(PBDDR, &PBDDRShadow, 0, 4);
    BitWrPortI(PBDDR, &PBDDRShadow, 0, 2);
    //set overflow to input
-   BitWrPortI(PBDDR,&PBDDRShadow,0,5);
+   BitWrPortI(PFDDR,&PFDDRShadow,0,5);
    //Set the channel ports to output
    BitWrPortI(PGDDR, &PGDDRShadow,1,3);
    BitWrPortI(PGDDR, &PGDDRShadow,1,1);
@@ -411,20 +428,23 @@ void initOutputFPGA()
    BitWrPortI(PDDDR, &PDDDRShadow,1,0);
    //Win 0 set to output
    BitWrPortI(PFDDR, &PFDDRShadow, 1, 1);
-
+   //Wind 2 set to output
+   BitWrPortI(PFDDR, &PFDDRShadow, 1, 6);
    //send clear counts and enable to 0
    BitWrPortI(PDDR, &PDDRShadow,0,5);
    BitWrPortI(PDDR, &PDDRShadow,0,0);
+   //set FPGA_19 to low
+   BitWrPortI(PADR,&PDDRShadow,0, 3);
 }
 //read the pins in from the FPGA and convert to a decimal number
 unsigned long readNumber()
 {
-   int fpga[21];
-	unsigned long ifpga;
+   unsigned long ifpga;
    unsigned long number;
    //check for overflow
-   if(BitRdPortI(PBFR,5)==0)
+   if(BitRdPortI(PFDR,5)==0)
    {
+
    	fpga[0] = BitRdPortI(PBDR, 6);
 	   fpga[1] = BitRdPortI(PBDR, 5);
 	   fpga[2] = BitRdPortI(PBDR, 3);
@@ -446,16 +466,22 @@ unsigned long readNumber()
 	   fpga[18] = BitRdPortI(PADR, 5);
 	   fpga[19] = BitRdPortI(PADR, 3);
 	   fpga[20] = BitRdPortI(PADR, 1);
-	   //printf("%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d\n",fpga[0],fpga[1],fpga[2],fpga[3],fpga[4],fpga[5],fpga[6],fpga[7],fpga[8],fpga[9],fpga[10],fpga[11],fpga[12],fpga[13],fpga[14],fpga[15],fpga[16],fpga[17],fpga[18],fpga[19],fpga[20]);
-	   number = 0;
+      if(ECHONUMBER)
+      {
+      	   printf("%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d\n",fpga[0],fpga[1],fpga[2],fpga[3],fpga[4],fpga[5],fpga[6],fpga[7],fpga[8],fpga[9],fpga[10],fpga[11],fpga[12],fpga[13],fpga[14],fpga[15],fpga[16],fpga[17],fpga[18],fpga[19],fpga[20]);
+      }
+      number = 0;
 	   for(ifpga=0;ifpga<21;ifpga++)
 	   {
 	      number += (1 << ifpga)*fpga[ifpga];
 	   }
+
    }
    else
    {
-   	number = -1;
+   	printf("detected overflow\n");
+   	number = 3000000000;
+      printf("%lu\n",number);
    }
    return number;
 }
@@ -466,7 +492,6 @@ void sendWindow(int window)
    int wind0;
    int wind1;
    int wind2;
-
    wind0 = (window % 2);
    window = window/2;
    wind1 = (window % 2);
@@ -474,8 +499,8 @@ void sendWindow(int window)
    wind2 = (window % 2);
 
    BitWrPortI(PFDR, &PFDRShadow,wind0,1);
-   BitWrPortI(PCDR, &PCDRShadow,wind1,2);
-   BitWrPortI(PCDR, &PCDRShadow,wind2,0);
+   BitWrPortI(PCDR, &PCDRShadow,wind1,0);
+   BitWrPortI(PFDR, &PFDRShadow,wind2,6);
 }
 //select the channel to read, 10 for chan1, 01 for chan2, 00 for coincidences
 void selectChannel(int ch0, int ch1)
@@ -551,7 +576,7 @@ void readDisplay()
             //the numbers must be broken up into thousands, millions and billions.
             //these then have different formatting rules based on the upper value of the number
             //for example, if the number is less than a thousand, don't put commas in but space out the number so that it lines up on the LCD screen:
-            if(chan0counts<0)
+            if(chan0counts==3000000000)
             {
             	sprintf(text0,"Channel1:   Overflow");
             }
@@ -580,7 +605,7 @@ void readDisplay()
 	            millions = (millions % 1000);
 	            sprintf(text0,"Channel1:%3lu,%03lu,%03lu",millions,thousands,ones);
 	         }
-	         if(chan0counts>=1000000000)
+	         if(chan0counts>=1000000000 && chan0counts<3000000000)
 	         {
 	            ones = (chan0counts % 1000);
 	            thousands = chan0counts/1000;
@@ -594,7 +619,7 @@ void readDisplay()
 	            billions = (billions % 1000);
 	            sprintf(text0,"Channel1:%lu,%03lu,%03lu,%03lu",billions,millions,thousands,ones);
 	         }
-            if(chan1counts<0)
+            if(chan1counts==3000000000)
             {
             	sprintf(text1,"Channel2:   Overflow");
             }
@@ -619,7 +644,7 @@ void readDisplay()
 	            millions = (millions % 1000);
 	            sprintf(text1,"Channel2:%3lu,%03lu,%03lu",millions,thousands,ones);
 	         }
-	         if(chan1counts>=1000000000)
+	         if(chan1counts>=1000000000 && chan1counts<3000000000)
 	         {
 	            ones = (chan1counts % 1000);
                thousands = chan1counts/1000;
@@ -633,7 +658,7 @@ void readDisplay()
 	            billions = (billions % 1000);
 	            sprintf(text1,"Channel2:%lu,%03lu,%03lu,%03lu",billions,millions,thousands,ones);
 	         }
-            if(coinccounts<0)
+            if(coinccounts==3000000000)
             {
             	sprintf(text3,"Coincide:   Overflow");
             }
@@ -659,7 +684,7 @@ void readDisplay()
 	            millions = (millions % 1000);
 	            sprintf(text3,"Coincide:%3lu,%03lu,%03lu",millions,thousands,ones);
 	         }
-	         if(coinccounts>=1000000000)
+	         if(coinccounts>=1000000000 && coinccounts<3000000000)
 	         {
 	            ones = (coinccounts % 1000);
                thousands = coinccounts/1000;
@@ -683,13 +708,7 @@ void readDisplay()
 	         {
 	            sprintf(text2,"                    ");
 	         }
-	         if(ECHOLCD)
-	         {
-	            printf("LCD:%s\n",text0);
-	            printf("LCD:%s\n",text1);
-	            printf("LCD:%s\n",text2);
-	            printf("LCD:%s\n",text3);
-	         }
+
 	}
 }
 
@@ -700,6 +719,7 @@ main(){
    int pressedup;
    int pressedmenu;
    int pressedclear;
+   int pressedpower;
    //menuon is 0 when the menu is closed, 1 for when the menu is open
    int menuon;
    //selected is 0 when no menu option has been selected, 1 for when no menu option has been selected
@@ -726,8 +746,8 @@ main(){
    //POW_KILL is an output signal to the LTC2954 that tells it to shut down
    BitWrPortI(PEDDR, &PEDDRShadow, 1, 6);
    //POW_KILL must be high
+   //BitWrPortI(PEDR, &PEDRShadow, 1, 6);
    BitWrPortI(PEDR, &PEDRShadow, 1, 6);
-
 
 	printf("Initialize the connections\n");
 	//initialize the LCD and FPGA connections
@@ -743,6 +763,7 @@ main(){
    pressedup = 0;
    pressedmenu = 0;
    pressedclear = 0;
+   pressedpower = 0;
    //initialize the menu as closed
    menuon = 0;
    //the default value of the window is 1 ns
@@ -755,7 +776,7 @@ main(){
    selected = 0;
    rotator = 0;
    //the default dwelltime is 2 s
-   dwelltime = 2;
+   dwelltime = 2000;
    chan0counts = 0;
    chan1counts = 0;
    coinccounts = 0;
@@ -766,20 +787,32 @@ main(){
    	costate
       {
       	//check for POW_INT pin notice
-      	if(!BitRdPortI(PEDR, 2))
+      	if(!BitRdPortI(PBDR, 7))
+         //if(!BitRdPortI(PGDR,4))
          {
-         	goodbyeNotice();
-            disp_pic();
-            DelayMs(100);
-            //send the kill signal
-            BitWrPortI(PEDR,&PEDRShadow,0,6);
+         	if(pressedpower)
+            {
+         		if(ECHOSWITCH)
+            	{
+	               printf("pressed power\n");
+	            }
+	            goodbyeNotice();
+	            disp_pic();
+	            DelayMs(100);
+	            //send the kill signal
+	            BitWrPortI(PEDR,&PEDRShadow,0,6);
+            }
+            pressedpower = 0;
+         }
+         else{
+         	pressedpower = 1;
          }
       }
    	costate
       {
       	//if more than 16 characters have been read from the serial connection
          //with no carriage return, start from the front of the buffer again
-      	if(seri>=16)
+      	if(seri>=16 || seri<0)
          {
       		seri = 0;
 
@@ -789,6 +822,7 @@ main(){
             //so that it doesn't hang forever on waiting for the next character
          	waitfor(DelayMs(10));
             c = serCgetc();
+            //printf("%d,%s\n",seri,c);
             //if the character is a letter, number or punctuation, accept it
             if (c>31 &&c<124) {
             	 //put the character in the buffer
@@ -808,8 +842,9 @@ main(){
                seri =16;
             }
          }
+         loc = strchr(serialin,'?');
          //if the first character of the string is a colon, start parsing it as a command
-         if(serialin[0]==':')
+         if(loc == NULL)
          {
          	 //copy characters 1-5 to serialfirst as the first part of the SCPI command
          	 memcpy(serialfirst,&serialin[0]+1,4);
@@ -845,7 +880,8 @@ main(){
                {
                	serialparsed = 1;
 	               memcpy(serialsecond,loc+1,5);
-	               tmpdwell = atof(serialsecond);
+                  //the dwelltime is an integer of milliseconds
+	               tmpdwell = atoi(serialsecond);
 
                   if(tmpdwell>=0)
 	               {
@@ -997,10 +1033,14 @@ main(){
    	//put all the button press listeners in different costates
    	costate
       {
-         if (!BitRdPortI(PEDR, 2))
+         if (!BitRdPortI(PEDR, 0))
 	      {
             if(pressedenable)
             {
+            	if(ECHOSWITCH)
+               {
+            		printf("pressed menu\n");
+               }
                if(menuon)
 	            {
                	selected =0;
@@ -1036,11 +1076,15 @@ main(){
       }
       costate
       {
-        	   if(!BitRdPortI(PEDR,5))
+        	   if(!BitRdPortI(PGDR,4))
             {
+               //printf("got hit\n");
             	if(pressedup)
                {
-               	printf("press up\n");
+               	if(ECHOSWITCH)
+                  {
+                  	printf("press up\n");
+                  }
                   //the window should only increase if the menu is currently on
 	               if(menuon)
 	               {
@@ -1058,8 +1102,7 @@ main(){
                         }
                         if(menuoption==1)
                         {
-                        	dwelltime++;
-                           dwelltime = dwelltime - floor(dwelltime/60.0)*60;
+                        	dwelltime+=1000;
                         }
                         if(menuoption==0)
                         {
@@ -1081,10 +1124,14 @@ main(){
       }
       costate
       {
-         if(!BitRdPortI(PGDR,6))
+         if(!BitRdPortI(PEDR,5))
       	{
             if(presseddown)
             {
+            	if(ECHOSWITCH)
+               {
+            		printf("pressed down\n");
+               }
                //the window should only increase if the menu is currently on
 	               if(menuon)
 	               {
@@ -1107,10 +1154,10 @@ main(){
                         }
                         if(menuoption==1)
                         {
-                        	dwelltime--;
+                        	dwelltime-=1000;
                            if(dwelltime<0)
                            {
-                           	dwelltime = dwelltime + 60;
+                           	dwelltime = dwelltime + 60000;
                            }
                         }
                         if(menuoption==0)
@@ -1137,8 +1184,12 @@ main(){
       {
       	//If the menu is off, then enable prevents the clear counts signal from being sent to the FPGA
          //If the menu is on, then enable sends the countEnable signal (which is actually the gateEnable signal)
-         if (!BitRdPortI(PGDR, 4))
+         if (!BitRdPortI(PGDR, 6))
 	      {
+         	if(ECHOSWITCH)
+            {
+            	printf("pressed enable\n");
+            }
             if(menuon)
 	         {
                 if(selected)
@@ -1172,11 +1223,15 @@ main(){
       }
       costate
       {
-          if (!BitRdPortI(PEDR, 0))
+          if (!BitRdPortI(PEDR, 2))
           {
-          		if(pressedclear)
+               if(ECHOSWITCH)
                {
-                   clearCounts(); // send clear signal
+                  printf("pressed clear\n");
+               }
+               if(pressedclear)
+               {
+               	 clearCounts(); // send clear signal
 	                clearNotice();
 	                screenholdoff = 1;
                    //pause and show the counts cleared message for 0.5 s
@@ -1233,7 +1288,7 @@ main(){
             if(enable)
             {
             	//if count enable mode is on, continuously read the screen until the dwelltime has passed
-            	stopTime = startTime + (int)(dwelltime*1000);
+            	stopTime = startTime + dwelltime;
                while(stopTime>MS_TIMER)
             	{
                   readDisplay();

@@ -3,3 +3,11 @@ greybox_tmp/
 incremental_db/
 output_files/
 simulation/
+*.HDL
+*.brk
+*.map
+*.org
+*.cdf
+*.BDL
+*.bak
+*.ROM

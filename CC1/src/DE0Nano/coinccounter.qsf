@@ -66,11 +66,11 @@ set_location_assignment PIN_A7 -to FPGA_15
 set_location_assignment PIN_C8 -to FPGA_16
 set_location_assignment PIN_E8 -to FPGA_17
 set_location_assignment PIN_F9 -to FPGA_18
-set_location_assignment PIN_R12 -to FPGA_19
+set_location_assignment PIN_L16 -to FPGA_19
 set_location_assignment PIN_C9 -to FPGA_20
 set_location_assignment PIN_R16 -to FPGA_OH
-set_location_assignment PIN_T14 -to CH_0
-set_location_assignment PIN_R13 -to CH_1
+set_location_assignment PIN_N12 -to CH_0
+set_location_assignment PIN_N9 -to CH_1
 set_location_assignment PIN_B6 -to WIN_0
 set_location_assignment PIN_F8 -to WIN_1
 set_location_assignment PIN_E9 -to WIN_2
